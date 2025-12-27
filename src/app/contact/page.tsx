@@ -19,7 +19,7 @@ export default function ContactPage() {
         </nav>
         <div className="w-[88px]"> {/* Spacer to balance layout if needed, or login button */}
              <Link href="/" className="text-sm font-medium text-blue-600 hover:text-blue-700">
-                Back to Home
+              Back
              </Link>
         </div>
       </header>

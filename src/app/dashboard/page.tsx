@@ -1,21 +1,22 @@
 "use client"
 
-import { useState } from "react"
-import { format, subYears } from "date-fns"
-import { useQuery } from "@tanstack/react-query"
-import { Calendar as CalendarIcon, BarChart3, Hourglass, Puzzle, Settings2, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Calendar } from "@/components/ui/calendar"
 import { Card } from "@/components/ui/card"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
+import { useQuery } from "@tanstack/react-query"
+import { format } from "date-fns"
+import { ArrowRight, BarChart3, Calendar as CalendarIcon, Hourglass, Puzzle, RefreshCcw, Settings2 } from "lucide-react"
+import { useState } from "react"
 
 export default function DashboardPage() {
   // Default: Jan 01 of Current Year to Today
+  const [isRefreshing,setRefreshing] = useState(false)
   const [fromDate, setFromDate] = useState<Date>(() => {
     const date = new Date()
     date.setMonth(0) // January
@@ -25,7 +26,7 @@ export default function DashboardPage() {
   const [toDate, setToDate] = useState<Date>(new Date())
 
   // Auto-Fetch with useQuery
-  const { data: countData, isLoading } = useQuery({
+  const { data: countData, isLoading, refetch } = useQuery({
     queryKey: ["emailCount", fromDate, toDate],
     queryFn: async () => {
       const res = await fetch("/api/gmail/count", {
@@ -114,6 +115,36 @@ export default function DashboardPage() {
                         </PopoverContent>
                     </Popover>
                 </div>
+            <div className="md:w-auto flex gap-2">
+                 <Button
+                    variant="outline"
+                    className="h-11 border-gray-200 hover:bg-gray-50 px-4 hover:cursor-pointer"
+                    onClick={() => {
+                        const date = new Date()
+                        date.setMonth(0)
+                        date.setDate(1)
+                        setFromDate(date)
+                        setToDate(new Date())
+                    }}
+                    title="Reset Filters"
+                >
+                    Reset
+                </Button>
+                 <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-11 w-11 border-gray-200 hover:bg-gray-50  hover:cursor-pointer"
+                    onClick={async () => {
+                      setRefreshing(true)
+                     await refetch()
+                     setRefreshing(false)
+                    }}
+                    disabled={isLoading}
+                    title="Refresh Data"
+                >
+                    <RefreshCcw className={cn("h-4 w-4 text-gray-400", isLoading  || isRefreshing && "animate-spin")} />
+                </Button>
+            </div>
             </div>
         </Card>
       </section>
@@ -139,7 +170,7 @@ export default function DashboardPage() {
                 <div>
                     <h3 className="text-sm font-semibold text-gray-500 mb-1">Total Used Annual Leave  (AL)</h3>
                     <p className="text-4xl font-bold text-gray-900 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                        {isLoading ? "..." : totalActiveListings}
+                        {isLoading  || isRefreshing? "..." : totalActiveListings}
                     </p>
                 </div>
             </Card>
@@ -157,7 +188,7 @@ export default function DashboardPage() {
                 <div>
                     <h3 className="text-sm font-semibold text-gray-500 mb-1">Remaining Annual Leave </h3>
                      <p className="text-4xl font-bold text-gray-900 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                        {isLoading ? "..." : remainingActiveListings <= 0 ? "0" : remainingActiveListings }
+                        {isLoading || isRefreshing ? "..." : remainingActiveListings <= 0 ? "0" : remainingActiveListings }
                      </p>
                 </div>
             </Card>

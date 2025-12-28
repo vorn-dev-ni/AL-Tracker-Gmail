@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { useQuery } from "@tanstack/react-query"
-import { format } from "date-fns"
+import { format, addYears } from "date-fns"
 import { ArrowRight, BarChart3, Calendar as CalendarIcon, Hourglass, Puzzle, RefreshCcw, Settings2 } from "lucide-react"
 import { useState } from "react"
 
@@ -32,9 +32,9 @@ export default function DashboardPage() {
       const res = await fetch("/api/gmail/count", {
         method: "POST",
         body: JSON.stringify({
-          query: 'from:("Form Approvals") subject:Complete',
+          query: 'from:(Form+Approvals) subject:Complete',
           from: fromDate ? format(fromDate, "yyyy/MM/dd") : undefined,
-          to: toDate ? format(toDate, "yyyy/MM/dd") : undefined,
+          to: toDate ? format(addYears(toDate, 1), "yyyy/MM/dd") : undefined,
         }),
       })
 
@@ -45,9 +45,13 @@ export default function DashboardPage() {
   })
 
   // Calculation Logic
+  // Calculation Logic
   const QUOTA_LIMIT = 18
-  const totalActiveListings = countData?.total > 18 ? 0 :  countData?.total|| 0
+  // Use totalDays if available, otherwise fallback to 0. 
+  // If countData itself is loading/undefined, this will adjust automatically.
+  const totalActiveListings =countData?.totalDays > 18 ? 0 : (countData?.totalDays ?? 0)
   const remainingActiveListings =  QUOTA_LIMIT - totalActiveListings
+
 
   return (
     <div className="space-y-8 p-1 md:p-2 max-w-7xl mx-auto">

@@ -23,17 +23,18 @@ export async function POST(req: Request) {
     if (from) q += `after:${from} `
     if (to) q += `before:${to} `
     
-    q = q.trim()
+    q = q.trim()  
 
-    let total = 0
+    let messages: any[] = []
     let pageToken = ""
     
-    // Pagination loop
+    // 1. Fetch all message IDs
     do {
        const url = new URL("https://gmail.googleapis.com/gmail/v1/users/me/messages")
        if (q) url.searchParams.append("q", q)
        if (pageToken) url.searchParams.append("pageToken", pageToken)
        
+        console.log('Fetching list with query:', q)
        const res = await fetch(url.toString(), {
          headers: {
            Authorization: `Bearer ${accessToken}`,
@@ -46,15 +47,75 @@ export async function POST(req: Request) {
         }
 
        const data = await res.json()
-       
        if (data.messages) {
-         total += data.messages.length
+         messages = [...messages, ...data.messages]
        }
-       
        pageToken = data.nextPageToken
     } while (pageToken)
 
-    return NextResponse.json({ total })
+    console.log(`Found ${messages.length} messages. Fetching details...`)
+
+    // 2. Fetch details for each message to extract "Days"
+    let totalDays = 0
+
+    // Fetch in parallel for speed
+    const detailsPromises = messages.map(async (msg) => {
+        try {
+            const res = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=full`, {
+                headers: { Authorization: `Bearer ${accessToken}` },
+            })
+            if (!res.ok) return 0
+            const data = await res.json()
+            
+            // Helper to find body
+            const getBody = (payload: any): string => {
+                if (payload.body?.data) return payload.body.data
+                if (payload.parts) {
+                    for (const part of payload.parts) {
+                        if (part.mimeType === 'text/plain' && part.body?.data) {
+                            return part.body.data
+                        }
+                        // Recursive check for nested parts
+                        if (part.parts) {
+                             const found = getBody(part)
+                             if(found) return found
+                        }
+                    }
+                }
+                return ""
+            }
+
+            const encodedBody = getBody(data.payload)
+            if (!encodedBody) return 0
+
+            // Decode Base64Url
+            const decodedBody = Buffer.from(encodedBody, 'base64url').toString('utf-8')
+            
+            // Extract Days
+            // Pattern: How long is your leave? (Days): 2
+            const match = decodedBody.match(/How long is your leave\? \(Days\):\s*(\d+)/i)
+            
+            if (match && match[1]) {
+                const days = parseInt(match[1], 10)
+                return isNaN(days) ? 0 : days
+            }
+            return 0
+
+        } catch (e) {
+            console.error(`Error fetching/parsing message ${msg.id}`, e)
+            return 0
+        }
+    })
+
+    const daysResults = await Promise.all(detailsPromises)
+    totalDays = daysResults.reduce((acc, curr) => acc + curr, 0)
+    
+    console.log(`Total calculated days: ${totalDays}`)
+
+    return NextResponse.json({ 
+        totalMessages: messages.length, 
+        totalDays: totalDays 
+    })
   } catch (error) {
     console.error("Gmail Count Error:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })

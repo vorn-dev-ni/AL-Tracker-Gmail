@@ -1,4 +1,5 @@
 import { auth, signOut } from "@/auth"
+import Link from "next/link"
 import { Bot, LogOut, User } from "lucide-react"
 import Image from "next/image"
 import { Footer } from "@/components/footer"
@@ -11,12 +12,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
       {/* Top Navbar */}
       <nav className="sticky top-0 z-50 w-full bg-white border-b border-gray-200 h-16 px-4 md:px-8 flex items-center justify-between">
         {/* Left: Logo */}
-        <div className="flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-3">
             <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center text-white">
                 <Bot className="w-5 h-5" />
             </div>
             <span className="font-bold text-lg tracking-tight text-gray-900">TOVTRIP AL TRACKER</span>
-        </div>
+        </Link>
 
         {/* Right: User Profile & Actions */}
         <div className="flex items-center gap-4">

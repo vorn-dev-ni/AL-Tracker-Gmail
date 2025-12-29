@@ -12,22 +12,64 @@ import { cn } from "@/lib/utils"
 import { useQuery } from "@tanstack/react-query"
 import { format, addYears } from "date-fns"
 import { ArrowRight, BarChart3, Calendar as CalendarIcon, Hourglass, Puzzle, RefreshCcw, Settings2 } from "lucide-react"
-import { useState } from "react"
+import { useSearchParams, useRouter, usePathname } from "next/navigation"
+import { useState, useEffect } from "react"
 
 export default function DashboardPage() {
   // Default: Jan 01 of Current Year to Today
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+
   const [isRefreshing,setRefreshing] = useState(false)
+  
   const [fromDate, setFromDate] = useState<Date>(() => {
+    const fromParam = searchParams.get("from")
+    if (fromParam) {
+      const parsed = new Date(fromParam)
+      if (!isNaN(parsed.getTime())) return parsed
+    }
     const date = new Date()
     date.setMonth(0) // January
     date.setDate(1)  // 1st
     return date
   })
-  const [toDate, setToDate] = useState<Date>(new Date())
+
+  const [toDate, setToDate] = useState<Date>(() => {
+    const toParam = searchParams.get("to")
+    if (toParam) {
+      const parsed = new Date(toParam)
+      if (!isNaN(parsed.getTime())) return parsed
+    }
+    return new Date()
+  })
+
+  // Sync state to URL
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString())
+    
+    if (fromDate) {
+      params.set("from", format(fromDate, "yyyy-MM-dd"))
+    } else {
+      params.delete("from")
+    }
+
+    if (toDate) {
+      params.set("to", format(toDate, "yyyy-MM-dd"))
+    } else {
+      params.delete("to")
+    }
+
+    const newSearch = params.toString()
+    if (newSearch !== searchParams.toString()) {
+        router.replace(`${pathname}?${newSearch}`, { scroll: false })
+    }
+  }, [fromDate, toDate, pathname, router, searchParams])
 
   // Auto-Fetch with useQuery
   const { data: countData, isLoading, refetch } = useQuery({
     queryKey: ["emailCount", fromDate, toDate],
+    staleTime:0,
     queryFn: async () => {
       const res = await fetch("/api/gmail/count", {
         method: "POST",
@@ -45,12 +87,17 @@ export default function DashboardPage() {
   })
 
   // Calculation Logic
-  // Calculation Logic
   const QUOTA_LIMIT = 18
   // Use totalDays if available, otherwise fallback to 0. 
   // If countData itself is loading/undefined, this will adjust automatically.
-  const totalActiveListings =countData?.totalDays > 18 ? 0 : (countData?.totalDays ?? 0)
-  const remainingActiveListings =  QUOTA_LIMIT - totalActiveListings
+  const totalActiveListings =countData?.totalDays ?? 0
+  const remainingActiveListings = QUOTA_LIMIT - totalActiveListings
+
+
+  // console.log("countData ac",countData)
+  // console.log("totalActiveListings",totalActiveListings)
+  // console.log("remainingActiveListings",remainingActiveListings)  
+
 
 
   return (
@@ -82,12 +129,13 @@ export default function DashboardPage() {
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
-                            <Calendar
+                          <Calendar
                             mode="single"
                             selected={fromDate}
                             onSelect={(date) => date && setFromDate(date)}
                             defaultMonth={fromDate}
                             initialFocus
+                            disabled={(date) => date > new Date() || date < new Date("2022-01-01")}
                             />
                         </PopoverContent>
                     </Popover>
@@ -109,12 +157,13 @@ export default function DashboardPage() {
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
-                            <Calendar
+                        <Calendar
                             mode="single"
                             selected={toDate}
                             onSelect={(date) => date && setToDate(date)}
                             defaultMonth={toDate}
                             initialFocus
+                            disabled={(date) => date < new Date(new Date().getFullYear(), 0, 1)}
                             />
                         </PopoverContent>
                     </Popover>
@@ -132,7 +181,7 @@ export default function DashboardPage() {
                     }}
                     title="Reset Filters"
                 >
-                    Reset
+                    Reset Filters
                 </Button>
                  <Button
                     variant="outline"
@@ -174,7 +223,7 @@ export default function DashboardPage() {
                 <div>
                     <h3 className="text-sm font-semibold text-gray-500 mb-1">Total Used Annual Leave  (AL)</h3>
                     <p className="text-4xl font-bold text-gray-900 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                        {isLoading  || isRefreshing? "..." : totalActiveListings}
+                        {isLoading  || isRefreshing? "..." : totalActiveListings > 18 ? "18" : totalActiveListings}
                     </p>
                 </div>
             </Card>

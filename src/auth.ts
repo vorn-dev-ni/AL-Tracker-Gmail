@@ -17,10 +17,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async jwt({ token, account }) {
       // Initial sign in
       if (account) {
+        console.log("JWT Initial Sign-In", { 
+          hasAccessToken: !!account.access_token, 
+          hasRefreshToken: !!account.refresh_token, 
+          expiresIn: account.expires_in,
+          grantedScopes: account.scope, // This already includes 'scope: account.scope' as 'grantedScopes'
+        })
         return {
           ...token,
           accessToken: account.access_token,
-          expiresAt: Date.now() + (account.expires_in as number) * 1000,
+          expiresAt: Date.now() + ((account.expires_in as number) || 3600) * 1000,
           refreshToken: account.refresh_token,
         }
       }
@@ -29,6 +35,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (Date.now() < (token.expiresAt as number)) {
         return token
       }
+
+      console.log("Access Token Expired, Refreshing...")
 
       // Access token has expired, try to update it
       return refreshAccessToken(token)

@@ -42,8 +42,24 @@ export async function POST(req: Request) {
        })
        
         if (!res.ok) {
-           console.error("Gmail API Error:", await res.text())
-           return NextResponse.json({ error: "Failed to fetch messages" }, { status: res.status })
+           const errorText = await res.text()
+           console.error("Gmail API Error:", errorText)
+           
+           try {
+             const errorJson = JSON.parse(errorText)
+             if (res.status === 403 || res.status === 401) {
+                // Check for insufficient permissions specifically
+                const reasons = errorJson.error?.errors?.map((e: any) => e.reason) || []
+                if (reasons.includes("insufficientPermissions") || errorJson.error?.message?.includes("insufficient authentication scopes")) {
+                    console.error("CRITICAL: User has invalid scopes. They likely unchecked the Gmail permission box.")
+                    return NextResponse.json({ error: "Insufficient Permissions: Please Re-login and Allow Gmail Access", details: errorJson }, { status: 403 })
+                }
+             }
+           } catch (e) {
+             // ignore parse error
+           }
+
+           return NextResponse.json({ error: "Failed to fetch messages", details: errorText }, { status: res.status })
         }
 
        const data = await res.json()

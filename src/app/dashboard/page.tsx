@@ -145,7 +145,7 @@ export default function DashboardPage() {
                     </Popover>
                 </div>
 
-                {/* <div className="w-full md:w-1/3 space-y-2">
+                <div className="w-full md:w-1/3 space-y-2">
                     <label className="text-sm font-semibold text-gray-600">To Date</label>
                     <Popover>
                         <PopoverTrigger asChild>
@@ -171,7 +171,7 @@ export default function DashboardPage() {
                             />
                         </PopoverContent>
                     </Popover>
-                </div> */}
+                </div>
             <div className="md:w-auto flex gap-2">
                  <Button
                     variant="outline"
